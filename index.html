@@ -1,11 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Xcelerate 2K26 QR Scanner</title>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
 
+  <title>Xcelerate 2K26 - Volunteer QR Scanner</title>
+
+  <!-- QR Scanner Library -->
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
   <style>
@@ -15,278 +21,469 @@
 
     body {
       margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f4f6f8;
       min-height: 100vh;
+      padding: 20px;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f5f7fb;
       display: flex;
       justify-content: center;
       align-items: center;
-      padding: 20px;
     }
 
     .container {
       width: 100%;
-      max-width: 500px;
-      background: white;
-      border-radius: 18px;
+      max-width: 520px;
+      background: #ffffff;
+      border-radius: 20px;
       padding: 25px;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.12);
       text-align: center;
     }
 
-    h1 {
-      margin-top: 0;
+    .logo {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: 2px;
       color: #111827;
+      margin-bottom: 5px;
     }
 
     .subtitle {
       color: #6b7280;
+      font-size: 15px;
+      line-height: 1.5;
       margin-bottom: 20px;
     }
 
     #reader {
       width: 100%;
-      margin: auto;
+      max-width: 420px;
+      margin: 0 auto;
+      overflow: hidden;
+      border-radius: 15px;
+    }
+
+    #reader video {
+      width: 100% !important;
+      border-radius: 15px;
     }
 
     .status {
-      margin-top: 20px;
-      padding: 14px;
+      margin-top: 18px;
+      padding: 13px;
       border-radius: 10px;
       background: #f3f4f6;
       color: #374151;
       font-size: 14px;
+      line-height: 1.5;
     }
 
-    .success {
+    .status.success {
       background: #dcfce7;
       color: #166534;
     }
 
-    .error {
+    .status.error {
       background: #fee2e2;
       color: #991b1b;
     }
 
+    .status.warning {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
     button {
+      width: 100%;
+      max-width: 300px;
       margin-top: 15px;
-      padding: 12px 22px;
+      padding: 13px 20px;
       border: none;
       border-radius: 10px;
-      background: #111827;
+      background: #2563eb;
       color: white;
-      font-size: 16px;
+      font-size: 15px;
+      font-weight: 600;
       cursor: pointer;
     }
 
     button:hover {
-      opacity: 0.9;
+      background: #1d4ed8;
+    }
+
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+
+    .info {
+      margin-top: 20px;
+      font-size: 13px;
+      color: #6b7280;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 10px;
+      }
+
+      .container {
+        padding: 18px 12px;
+        border-radius: 15px;
+      }
+
+      .logo {
+        font-size: 23px;
+      }
+
+      .subtitle {
+        font-size: 14px;
+      }
     }
   </style>
 </head>
 
 <body>
 
-<div class="container">
+  <div class="container">
 
-  <h1>Xcelerate 2K26</h1>
+    <div class="logo">
+      XCELERATE
+    </div>
 
-  <div class="subtitle">
-    Volunteer QR Scanner
+    <div class="subtitle">
+      Xcelerate 2K26
+      <br>
+      Volunteer QR Scanner
+    </div>
+
+    <div id="reader"></div>
+
+    <div id="status" class="status">
+      Starting camera...
+    </div>
+
+    <button
+      id="startButton"
+      onclick="startScanner()"
+      style="display: none;"
+    >
+      Start Camera
+    </button>
+
+    <div class="info">
+      Point the camera at the participant's
+      unique QR code.
+
+      <br><br>
+
+      After scanning, the participant information
+      will automatically return to the Volunteer page.
+    </div>
+
   </div>
 
-  <div id="reader"></div>
+  <script>
 
-  <div id="status" class="status">
-    Opening camera...
-  </div>
-
-  <button id="startButton" onclick="startScanner()" style="display:none;">
-    START CAMERA
-  </button>
-
-</div>
-
-<script>
-
-let scanner = null;
-let scanned = false;
-
-function setStatus(message, type = "") {
-
-  const status = document.getElementById("status");
-
-  status.innerText = message;
-
-  status.className = "status";
-
-  if (type) {
-    status.classList.add(type);
-  }
-}
+    let scanner = null;
+    let scanned = false;
 
 
-function extractToken(decodedText) {
+    /*
+     * ----------------------------------------------------------
+     * STATUS MESSAGE
+     * ----------------------------------------------------------
+     */
 
-  try {
+    function setStatus(message, type) {
 
-    const url = new URL(decodedText);
+      const status =
+        document.getElementById("status");
 
-    const token = url.searchParams.get("token");
+      status.textContent = message;
 
-    if (token) {
-      return token;
+      status.className = "status";
+
+      if (type) {
+        status.classList.add(type);
+      }
     }
 
-  } catch (error) {
 
-    // QR may contain plain token
+    /*
+     * ----------------------------------------------------------
+     * EXTRACT TOKEN FROM PARTICIPANT QR
+     * ----------------------------------------------------------
+     */
 
-  }
-
-  return null;
-}
-
-
-function sendTokenToVolunteer(token) {
-
-  if (!window.opener) {
-
-    setStatus(
-      "This scanner was not opened from the Volunteer page. Please close this tab and open the scanner using the Volunteer page.",
-      "error"
-    );
-
-    return;
-  }
-
-  window.opener.postMessage(
-    {
-      type: "XCELERATE_QR",
-      token: token
-    },
-    "*"
-  );
-
-  setStatus(
-    "QR scanned successfully. Returning to Volunteer page...",
-    "success"
-  );
-
-  setTimeout(function() {
-
-    try {
-      window.close();
-    } catch (e) {}
-
-  }, 800);
-}
-
-
-function onScanSuccess(decodedText, decodedResult) {
-
-  if (scanned) {
-    return;
-  }
-
-  scanned = true;
-
-  if (scanner) {
-
-    try {
-      scanner.pause(true);
-    } catch (e) {}
-
-  }
-
-  const token = extractToken(decodedText);
-
-  if (!token) {
-
-    scanned = false;
-
-    setStatus(
-      "Invalid Xcelerate QR. Please scan the participant QR again.",
-      "error"
-    );
-
-    if (scanner) {
+    function extractToken(decodedText) {
 
       try {
-        scanner.resume();
-      } catch (e) {}
 
+        const url =
+          new URL(decodedText);
+
+        const token =
+          url.searchParams.get("token");
+
+        return token;
+
+      } catch (error) {
+
+        console.error(
+          "Invalid QR URL:",
+          error
+        );
+
+        return null;
+      }
     }
 
-    return;
-  }
 
-  sendTokenToVolunteer(token);
-}
+    /*
+     * ----------------------------------------------------------
+     * SEND TOKEN TO VOLUNTEER PAGE
+     * ----------------------------------------------------------
+     */
+
+    function sendTokenToVolunteer(token) {
+
+      if (!window.opener) {
+
+        setStatus(
+          "Volunteer page could not be found. Please open the scanner from the Volunteer page.",
+          "error"
+        );
+
+        return;
+      }
 
 
-function onScanFailure(error) {
+      window.opener.postMessage(
+        {
+          type: "XCELERATE_QR",
+          token: token
+        },
+        "*"
+      );
 
-  // Ignore continuous scanner errors.
-}
+
+      setStatus(
+        "QR scanned successfully. Returning to Volunteer page...",
+        "success"
+      );
 
 
-function startScanner() {
+      setTimeout(function() {
 
-  document.getElementById("startButton").style.display = "none";
+        try {
+          window.close();
+        } catch (error) {
+          console.error(error);
+        }
 
-  setStatus("Requesting camera permission...");
-
-  scanner = new Html5Qrcode("reader");
-
-  const config = {
-    fps: 10,
-    qrbox: {
-      width: 250,
-      height: 250
+      }, 800);
     }
-  };
 
-  scanner.start(
-    {
-      facingMode: "environment"
-    },
-    config,
-    onScanSuccess,
-    onScanFailure
-  )
-  .then(function() {
 
-    setStatus("Camera ready. Point the camera at the participant QR.");
+    /*
+     * ----------------------------------------------------------
+     * QR SCAN SUCCESS
+     * ----------------------------------------------------------
+     */
 
-  })
-  .catch(function(error) {
+    function onScanSuccess(
+      decodedText,
+      decodedResult
+    ) {
 
-    console.error(error);
+      if (scanned) {
+        return;
+      }
 
-    setStatus(
-      "Camera could not be opened. Please allow camera permission and try again.",
-      "error"
+
+      console.log(
+        "QR detected:",
+        decodedText
+      );
+
+
+      const token =
+        extractToken(decodedText);
+
+
+      if (!token) {
+
+        setStatus(
+          "Invalid Xcelerate QR code. Please scan the participant QR.",
+          "error"
+        );
+
+        return;
+      }
+
+
+      scanned = true;
+
+
+      /*
+       * Stop/pause scanning after successful scan.
+       */
+
+      if (scanner) {
+
+        try {
+          scanner.pause(true);
+        } catch (error) {
+          console.error(error);
+        }
+      }
+
+
+      sendTokenToVolunteer(token);
+    }
+
+
+    /*
+     * ----------------------------------------------------------
+     * QR SCAN FAILURE
+     * ----------------------------------------------------------
+     *
+     * This function is called continuously while
+     * the camera is searching.
+     *
+     * We intentionally don't display anything here.
+     * ----------------------------------------------------------
+     */
+
+    function onScanFailure(error) {
+
+      // No action required.
+    }
+
+
+    /*
+     * ----------------------------------------------------------
+     * START CAMERA
+     * ----------------------------------------------------------
+     */
+
+    function startScanner() {
+
+      scanned = false;
+
+
+      const startButton =
+        document.getElementById("startButton");
+
+      startButton.style.display = "none";
+
+
+      setStatus(
+        "Starting camera...",
+        ""
+      );
+
+
+      /*
+       * Clear previous scanner if present.
+       */
+
+      if (scanner) {
+
+        try {
+          scanner.clear();
+        } catch (error) {
+          console.error(error);
+        }
+      }
+
+
+      /*
+       * Create new QR scanner.
+       */
+
+      scanner =
+        new Html5Qrcode("reader");
+
+
+      const config = {
+
+        fps: 10,
+
+        qrbox: {
+          width: 250,
+          height: 250
+        },
+
+        aspectRatio: 1.0
+      };
+
+
+      /*
+       * Start rear camera.
+       */
+
+      scanner
+        .start(
+          {
+            facingMode: "environment"
+          },
+
+          config,
+
+          onScanSuccess,
+
+          onScanFailure
+        )
+
+        .then(function() {
+
+          setStatus(
+            "Camera is ready. Scan the participant QR code.",
+            ""
+          );
+
+        })
+
+        .catch(function(error) {
+
+          console.error(
+            "Camera error:",
+            error
+          );
+
+
+          setStatus(
+            "Unable to access the camera. Please allow camera permission and try again.",
+            "error"
+          );
+
+
+          startButton.style.display =
+            "inline-block";
+        });
+    }
+
+
+    /*
+     * ----------------------------------------------------------
+     * AUTOMATICALLY START CAMERA
+     * ----------------------------------------------------------
+     */
+
+    window.addEventListener(
+      "load",
+      function() {
+
+        startScanner();
+
+      }
     );
 
-    document.getElementById("startButton").style.display = "inline-block";
-
-  });
-
-}
-
-
-// Try automatically when page opens.
-
-window.addEventListener("load", function() {
-
-  setTimeout(function() {
-    startScanner();
-  }, 500);
-
-});
-
-</script>
+  </script>
 
 </body>
+
 </html>
